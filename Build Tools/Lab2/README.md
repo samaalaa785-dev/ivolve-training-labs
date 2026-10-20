@@ -1,35 +1,71 @@
-# Lab 2 - Gradle Calculator
+Steps Performed
 
-## Overview
-This lab contains a Java Calculator application built with Gradle.
+1. Clone the Project
 
-## Features
-- Addition
-- Subtraction
-- Multiplication
-- Division
-- Unit tests using JUnit
+Cloned the Calculator Gradle project from GitHub.
 
-## Project Structure
-- `build.gradle`: Gradle build configuration
-- `settings.gradle`: Project settings
-- `src/main`: Application source code
-- `src/test`: Unit tests
+git clone https://github.com/Ibrahim-Adel15/CalculatorGradleApp.git
 
-## Requirements
-- Java 17 or later
-- Gradle
+2. Install SDKMAN
 
-## Run Tests
-```bash
+Installed SDKMAN to manage Java development tools.
+
+curl -s "https://get.sdkman.io" | bash
+
+Loaded SDKMAN in the current terminal:
+
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+3. Install Java
+
+Installed Java 17 using SDKMAN.
+
+sdk install java 17.0.20-tem
+
+Verified the Java installation:
+
+java -version
+
+4. Install Gradle
+
+Installed Gradle using SDKMAN.
+
+sdk install gradle 9.8.2
+
+Verified the Gradle installation:
+
+gradle -version
+
+5. Run Unit Tests
+
+Executed the project's unit tests.
+
 gradle test
+
+Result: Tests passed successfully.
+
+6. Build the Application
+
+Built the application and generated the JAR file.
+
 gradle build
+
+Result: Build completed successfully.
+
+7. Run the Application
+
+Executed the generated JAR file.
+
 java -jar build/libs/calculator.jar
 
-## 4. راجعي الـ structure النهائي
+Tested the calculator with inputs 1 and 5.
 
-```bash
-find "Build Tools" -type f \
-  ! -path "*/target/*" \
-  ! -path "*/build/*" \
-  ! -path "*/.gradle/*" | sort
+Output:
+
+Sum: 6.0
+
+Subtract: -4.0
+
+Multiply: 5.0
+
+Divide: 0.2
