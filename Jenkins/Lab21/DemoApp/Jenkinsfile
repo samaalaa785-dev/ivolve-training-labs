@@ -1,24 +1,48 @@
+
 pipeline {
     agent any
+
+    options {
+        skipDefaultCheckout(true)
+    }
 
     environment {
         IMAGE_NAME = 'sama2alaa/demoapp'
         NAMESPACE = 'demoapp'
         K8S_API = 'https://192.168.49.2:8443'
+
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
         K8S_CREDENTIALS_ID = 'k8s-token'
+
         APP_DIR = 'Jenkins/Lab21/DemoApp'
     }
 
     stages {
+
+        stage('Clean Workspace and Checkout') {
+            steps {
+                script {
+                    sh '''
+                        docker exec -u root jenkins11 sh -c \
+                        "chown -R jenkins:jenkins /var/jenkins_home/workspace/Lab21-Pipeline"
+                    '''
+                }
+
+                deleteDir()
+                checkout scm
+            }
+        }
+
         stage('Build Application') {
             steps {
                 sh '''
                     docker run --rm \
+                      --user "$(id -u):$(id -g)" \
                       --volumes-from jenkins11 \
-                      -w "/var/jenkins_home/workspace/${JOB_NAME}/${APP_DIR}" \
+                      -e HOME=/tmp \
+                      -w "$WORKSPACE" \
                       maven:3.9-eclipse-temurin-17 \
-                      mvn clean package -DskipTests
+                      mvn -f "$APP_DIR/pom.xml" clean package -DskipTests
                 '''
             }
         }
@@ -27,8 +51,12 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     sh '''
-                        docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
-                        docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                        docker build \
+                          -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+
+                        docker tag \
+                          ${IMAGE_NAME}:${BUILD_NUMBER} \
+                          ${IMAGE_NAME}:latest
                     '''
                 }
             }
@@ -41,7 +69,8 @@ pipeline {
                       -v /var/run/docker.sock:/var/run/docker.sock \
                       -v trivy-cache:/root/.cache/ \
                       aquasec/trivy:0.76.0 \
-                      image --timeout 15m \
+                      image \
+                      --timeout 15m \
                       --exit-code 0 \
                       --severity HIGH,CRITICAL \
                       ${IMAGE_NAME}:${BUILD_NUMBER}
@@ -60,7 +89,8 @@ pipeline {
                 ]) {
                     sh '''
                         echo "$DOCKER_PASSWORD" | docker login \
-                          -u "$DOCKER_USER" --password-stdin
+                          -u "$DOCKER_USER" \
+                          --password-stdin
 
                         docker push ${IMAGE_NAME}:${BUILD_NUMBER}
                         docker push ${IMAGE_NAME}:latest
@@ -75,7 +105,11 @@ pipeline {
             steps {
                 dir("${APP_DIR}") {
                     sh '''
-                        sed -i "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" deployment.yaml
+                        sed -i \
+                          "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" \
+                          deployment.yaml
+
+                        cat deployment.yaml
                     '''
                 }
             }
@@ -95,14 +129,16 @@ pipeline {
                               --server=${K8S_API} \
                               --token="$K8S_TOKEN" \
                               --insecure-skip-tls-verify=true \
-                              apply -f deployment.yaml -n ${NAMESPACE}
+                              apply -f deployment.yaml \
+                              -n ${NAMESPACE}
 
                             kubectl \
                               --server=${K8S_API} \
                               --token="$K8S_TOKEN" \
                               --insecure-skip-tls-verify=true \
                               rollout status deployment/demoapp \
-                              -n ${NAMESPACE} --timeout=180s
+                              -n ${NAMESPACE} \
+                              --timeout=180s
                         '''
                     }
                 }
@@ -114,11 +150,13 @@ pipeline {
         always {
             echo 'Pipeline execution finished.'
         }
+
         success {
             echo 'SUCCESS: Application deployed successfully!'
         }
+
         failure {
-            echo 'FAILURE: Pipeline execution failed.'
+            echo 'FAILURE: Pipeline execution failed. Check Console Output.'
         }
     }
 }
