@@ -1,0 +1,140 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'sama2alaa/demoapp'
+        NAMESPACE = 'demoapp'
+        K8S_API = 'https://192.168.49.2:8443'
+
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
+        K8S_CREDENTIALS_ID = 'k8s-token'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Application') {
+            steps {
+                sh '''
+                    docker run --rm \
+                      -v "$WORKSPACE:/app" \
+                      -w /app \
+                      maven:3.9-eclipse-temurin-17 \
+                      mvn clean package -DskipTests
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Scan Docker Image') {
+            steps {
+                sh '''
+                    docker run --rm \
+                      -v /var/run/docker.sock:/var/run/docker.sock \
+                      -v trivy-cache:/root/.cache/ \
+                      aquasec/trivy:0.76.0 \
+                      image --timeout 15m \
+                      --exit-code 0 \
+                      --severity HIGH,CRITICAL \
+                      ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Push Image to DockerHub') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${DOCKER_CREDENTIALS_ID}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                          -u "$DOCKER_USER" --password-stdin
+
+                        docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                        docker push ${IMAGE_NAME}:latest
+
+                        docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Delete Local Image') {
+            steps {
+                sh '''
+                    docker rmi ${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker rmi ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
+        stage('Update Deployment File') {
+            steps {
+                sh '''
+                    sed -i "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" deployment.yaml
+
+                    cat deployment.yaml
+                '''
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
+                withCredentials([
+                    string(
+                        credentialsId: "${K8S_CREDENTIALS_ID}",
+                        variable: 'K8S_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        kubectl \
+                          --server=${K8S_API} \
+                          --token="$K8S_TOKEN" \
+                          --insecure-skip-tls-verify=true \
+                          apply -f deployment.yaml \
+                          -n ${NAMESPACE}
+
+                        kubectl \
+                          --server=${K8S_API} \
+                          --token="$K8S_TOKEN" \
+                          --insecure-skip-tls-verify=true \
+                          rollout status deployment/demoapp \
+                          -n ${NAMESPACE} \
+                          --timeout=180s
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline execution finished.'
+        }
+
+        success {
+            echo 'SUCCESS: Application deployed successfully!'
+        }
+
+        failure {
+            echo 'FAILURE: Pipeline execution failed. Check console output.'
+        }
+    }
+}
