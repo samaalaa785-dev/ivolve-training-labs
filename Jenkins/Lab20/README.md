@@ -26,4 +26,4 @@ Configure role-based authorization in Jenkins by assigning different permissions
 
 ## Result
 
-Successfully configured and tested Role-Based Authorization in Jenkins.# Lab 20: Role-Based Authorization
+Successfully configured and tested Role-Based Authorization in Jenkins.
