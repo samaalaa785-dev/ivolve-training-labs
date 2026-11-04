@@ -8,6 +8,8 @@ pipeline {
 
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
         K8S_CREDENTIALS_ID = 'k8s-token'
+
+        APP_DIR = 'Jenkins/Lab21/DemoApp'
     }
 
     stages {
@@ -20,22 +22,26 @@ pipeline {
 
         stage('Build Application') {
             steps {
-                sh '''
-                    docker run --rm \
-                      -v "$WORKSPACE:/app" \
-                      -w /app \
-                      maven:3.9-eclipse-temurin-17 \
-                      mvn clean package -DskipTests
-                '''
+                dir("${APP_DIR}") {
+                    sh '''
+                        docker run --rm \
+                          -v "$WORKSPACE/$APP_DIR:/app" \
+                          -w /app \
+                          maven:3.9-eclipse-temurin-17 \
+                          mvn clean package -DskipTests
+                    '''
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                    docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
-                    docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
-                '''
+                dir("${APP_DIR}") {
+                    sh '''
+                        docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                        docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
+                    '''
+                }
             }
         }
 
@@ -79,19 +85,20 @@ pipeline {
         stage('Delete Local Image') {
             steps {
                 sh '''
-                    docker rmi ${IMAGE_NAME}:${BUILD_NUMBER}
-                    docker rmi ${IMAGE_NAME}:latest
+                    docker rmi ${IMAGE_NAME}:${BUILD_NUMBER} || true
+                    docker rmi ${IMAGE_NAME}:latest || true
                 '''
             }
         }
 
         stage('Update Deployment File') {
             steps {
-                sh '''
-                    sed -i "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" deployment.yaml
-
-                    cat deployment.yaml
-                '''
+                dir("${APP_DIR}") {
+                    sh '''
+                        sed -i "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" deployment.yaml
+                        cat deployment.yaml
+                    '''
+                }
             }
         }
 
@@ -103,22 +110,24 @@ pipeline {
                         variable: 'K8S_TOKEN'
                     )
                 ]) {
-                    sh '''
-                        kubectl \
-                          --server=${K8S_API} \
-                          --token="$K8S_TOKEN" \
-                          --insecure-skip-tls-verify=true \
-                          apply -f deployment.yaml \
-                          -n ${NAMESPACE}
+                    dir("${APP_DIR}") {
+                        sh '''
+                            kubectl \
+                              --server=${K8S_API} \
+                              --token="$K8S_TOKEN" \
+                              --insecure-skip-tls-verify=true \
+                              apply -f deployment.yaml \
+                              -n ${NAMESPACE}
 
-                        kubectl \
-                          --server=${K8S_API} \
-                          --token="$K8S_TOKEN" \
-                          --insecure-skip-tls-verify=true \
-                          rollout status deployment/demoapp \
-                          -n ${NAMESPACE} \
-                          --timeout=180s
-                    '''
+                            kubectl \
+                              --server=${K8S_API} \
+                              --token="$K8S_TOKEN" \
+                              --insecure-skip-tls-verify=true \
+                              rollout status deployment/demoapp \
+                              -n ${NAMESPACE} \
+                              --timeout=180s
+                        '''
+                    }
                 }
             }
         }
