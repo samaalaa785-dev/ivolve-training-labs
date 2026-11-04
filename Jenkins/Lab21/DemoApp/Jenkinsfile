@@ -22,14 +22,14 @@ pipeline {
 
         stage('Build Application') {
             steps {
-                dir("${APP_DIR}") {
-                    sh '''
-                        docker run --rm \
-                          -v "$WORKSPACE/$APP_DIR:/app" \
-                          -w /app \
-                          maven:3.9-eclipse-temurin-17 \
+                dir('Jenkins/Lab21/DemoApp') {
+                    sh """
+                        docker run --rm \\
+                          --volumes-from jenkins11 \\
+                          -w "$WORKSPACE/Jenkins/Lab21/DemoApp" \\
+                          maven:3.9-eclipse-temurin-17 \\
                           mvn clean package -DskipTests
-                    '''
+                    """
                 }
             }
         }
