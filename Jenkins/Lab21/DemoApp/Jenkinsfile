@@ -5,31 +5,22 @@ pipeline {
         IMAGE_NAME = 'sama2alaa/demoapp'
         NAMESPACE = 'demoapp'
         K8S_API = 'https://192.168.49.2:8443'
-
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
         K8S_CREDENTIALS_ID = 'k8s-token'
-
         APP_DIR = 'Jenkins/Lab21/DemoApp'
     }
 
     stages {
-
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Build Application') {
             steps {
-                dir('Jenkins/Lab21/DemoApp') {
-                    sh """
-                        docker run --rm \\
-                          --volumes-from jenkins11 \\
-                          -w "$WORKSPACE/Jenkins/Lab21/DemoApp" \\
-                          maven:3.9-eclipse-temurin-17 \\
-                          mvn clean package -DskipTests
-                    """
+                dir("${APP_DIR}") {
+                    sh '''
+                        docker run --rm \
+                          --volumes-from jenkins11 \
+                          -w "/var/jenkins_home/workspace/${JOB_NAME}" \
+                          maven:3.9-eclipse-temurin-17 \
+                          mvn -f Jenkins/Lab21/DemoApp/pom.xml clean package -DskipTests
+                    '''
                 }
             }
         }
@@ -72,22 +63,11 @@ pipeline {
                     sh '''
                         echo "$DOCKER_PASSWORD" | docker login \
                           -u "$DOCKER_USER" --password-stdin
-
                         docker push ${IMAGE_NAME}:${BUILD_NUMBER}
                         docker push ${IMAGE_NAME}:latest
-
                         docker logout
                     '''
                 }
-            }
-        }
-
-        stage('Delete Local Image') {
-            steps {
-                sh '''
-                    docker rmi ${IMAGE_NAME}:${BUILD_NUMBER} || true
-                    docker rmi ${IMAGE_NAME}:latest || true
-                '''
             }
         }
 
@@ -96,7 +76,6 @@ pipeline {
                 dir("${APP_DIR}") {
                     sh '''
                         sed -i "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" deployment.yaml
-                        cat deployment.yaml
                     '''
                 }
             }
@@ -116,16 +95,14 @@ pipeline {
                               --server=${K8S_API} \
                               --token="$K8S_TOKEN" \
                               --insecure-skip-tls-verify=true \
-                              apply -f deployment.yaml \
-                              -n ${NAMESPACE}
+                              apply -f deployment.yaml -n ${NAMESPACE}
 
                             kubectl \
                               --server=${K8S_API} \
                               --token="$K8S_TOKEN" \
                               --insecure-skip-tls-verify=true \
                               rollout status deployment/demoapp \
-                              -n ${NAMESPACE} \
-                              --timeout=180s
+                              -n ${NAMESPACE} --timeout=180s
                         '''
                     }
                 }
@@ -137,13 +114,11 @@ pipeline {
         always {
             echo 'Pipeline execution finished.'
         }
-
         success {
             echo 'SUCCESS: Application deployed successfully!'
         }
-
         failure {
-            echo 'FAILURE: Pipeline execution failed. Check console output.'
+            echo 'FAILURE: Pipeline execution failed.'
         }
     }
 }
