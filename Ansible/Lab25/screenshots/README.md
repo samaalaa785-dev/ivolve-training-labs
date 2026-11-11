@@ -113,6 +113,3 @@ HTTP/1.1 200 OK
 
 Screenshots documenting the Ansible connectivity, Playbook execution, Docker and Kubectl verification, Jenkins container, and HTTP response are available in the `screenshots/` directory.
 
-## Note
-
-Jenkins was deployed using Docker instead of the APT package because the official Jenkins package repository was unreachable from the lab environment.
