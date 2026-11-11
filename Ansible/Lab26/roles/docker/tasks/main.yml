@@ -1,0 +1,19 @@
+---
+- name: Check Docker installation
+  command: docker --version
+  register: docker_check
+  changed_when: false
+  failed_when: false
+
+- name: Install Docker if missing
+  apt:
+    name: docker.io
+    state: present
+    update_cache: yes
+  when: docker_check.rc != 0
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes

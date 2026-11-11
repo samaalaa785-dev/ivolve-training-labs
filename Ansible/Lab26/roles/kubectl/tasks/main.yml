@@ -1,0 +1,13 @@
+---
+- name: Check kubectl installation
+  command: kubectl version --client
+  register: kubectl_check
+  changed_when: false
+  failed_when: false
+
+- name: Install kubectl if missing
+  get_url:
+    url: https://dl.k8s.io/release/v1.36.6/bin/linux/amd64/kubectl
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+  when: kubectl_check.rc != 0

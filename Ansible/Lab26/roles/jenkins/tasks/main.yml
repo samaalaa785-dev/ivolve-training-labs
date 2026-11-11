@@ -1,0 +1,24 @@
+---
+- name: Ensure Jenkins Docker volume exists
+  command: docker volume create jenkins_home
+  register: jenkins_volume
+  changed_when: false
+
+- name: Ensure Jenkins container is running
+  shell: |
+    if docker inspect jenkins >/dev/null 2>&1; then
+      if [ "$(docker inspect -f '{{.State.Running}}' jenkins)" = "true" ]; then
+        echo "Jenkins is already running"
+      else
+        docker start jenkins
+        echo "Jenkins started"
+      fi
+    else
+      docker run -d --name jenkins --restart unless-stopped \
+        -p 8086:8080 -p 50001:50000 \
+        -v jenkins_home:/var/jenkins_home \
+        jenkins/jenkins:lts-jdk21
+      echo "Jenkins container created"
+    fi
+  register: jenkins_container
+  changed_when: "'started' in jenkins_container.stdout or 'created' in jenkins_container.stdout"
