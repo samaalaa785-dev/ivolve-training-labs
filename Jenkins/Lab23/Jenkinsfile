@@ -10,10 +10,8 @@ pipeline {
     environment {
         IMAGE_NAME = 'sama2alaa/demoapp'
         APP_DIR = 'Jenkins/Lab21/DemoApp'
-
-        NAMESPACE = 'demoapp'
-
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
+        GITHUB_CREDENTIALS_ID = 'github-creds'
     }
 
     stages {
@@ -38,7 +36,10 @@ pipeline {
 
         stage('Update GitOps Manifest') {
             steps {
-                deployToK8s()
+                script {
+                    def updateManifest = load 'Jenkins/Lab23/vars/deployToK8s.groovy'
+                    updateManifest()
+                }
             }
         }
     }
@@ -47,13 +48,11 @@ pipeline {
         always {
             echo 'Pipeline execution finished.'
         }
-
         success {
-            echo 'SUCCESS: Application deployed successfully!'
+            echo 'SUCCESS: GitOps manifest pushed to GitHub!'
         }
-
         failure {
-            echo 'FAILURE: Pipeline execution failed. Check Console Output.'
+            echo 'FAILURE: Check Console Output.'
         }
     }
 }
