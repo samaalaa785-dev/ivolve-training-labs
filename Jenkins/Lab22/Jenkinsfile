@@ -12,8 +12,10 @@ pipeline {
         APP_DIR = 'Jenkins/Lab21/DemoApp'
 
         NAMESPACE = 'demoapp'
+        K8S_API = 'https://192.168.49.2:8443'
 
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
+        K8S_CREDENTIALS_ID = 'k8s-token'
     }
 
     stages {
@@ -36,7 +38,7 @@ pipeline {
             }
         }
 
-        stage('Update GitOps Manifest') {
+        stage('Deploy to Kubernetes') {
             steps {
                 deployToK8s()
             }

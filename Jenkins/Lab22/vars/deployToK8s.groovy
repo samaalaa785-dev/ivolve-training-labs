@@ -1,33 +1,35 @@
 def call() {
+
     dir(env.APP_DIR) {
         sh '''
             sed -i \
               "s|image:.*|image: ${IMAGE_NAME}:${BUILD_NUMBER}|" \
               deployment.yaml
 
-            echo "Updated deployment.yaml:"
             cat deployment.yaml
-
-            git config user.name "Jenkins"
-            git config user.email "jenkins@example.com"
-
-            git add deployment.yaml
-
-            if git diff --cached --quiet; then
-                echo "No changes to commit."
-            else
-                git commit -m "Update DemoApp image to ${BUILD_NUMBER}"
-            fi
         '''
 
         withCredentials([
-            gitUsernamePassword(
-                credentialsId: 'github-creds',
-                gitToolName: 'Default'
+            string(
+                credentialsId: env.K8S_CREDENTIALS_ID,
+                variable: 'K8S_TOKEN'
             )
         ]) {
             sh '''
-                git push origin HEAD:main
+                kubectl \
+                  --server=${K8S_API} \
+                  --token="$K8S_TOKEN" \
+                  --insecure-skip-tls-verify=true \
+                  apply -f deployment.yaml \
+                  -n ${NAMESPACE}
+
+                kubectl \
+                  --server=${K8S_API} \
+                  --token="$K8S_TOKEN" \
+                  --insecure-skip-tls-verify=true \
+                  rollout status deployment/demoapp \
+                  -n ${NAMESPACE} \
+                  --timeout=180s
             '''
         }
     }

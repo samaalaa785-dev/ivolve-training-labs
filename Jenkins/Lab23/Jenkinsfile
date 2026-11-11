@@ -1,0 +1,59 @@
+@Library('shared-lib') _
+
+pipeline {
+    agent any
+
+    options {
+        skipDefaultCheckout(true)
+    }
+
+    environment {
+        IMAGE_NAME = 'sama2alaa/demoapp'
+        APP_DIR = 'Jenkins/Lab21/DemoApp'
+
+        NAMESPACE = 'demoapp'
+
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Application') {
+            steps {
+                buildApp()
+            }
+        }
+
+        stage('Build, Scan and Push Image') {
+            steps {
+                buildAndPushImage()
+            }
+        }
+
+        stage('Update GitOps Manifest') {
+            steps {
+                deployToK8s()
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline execution finished.'
+        }
+
+        success {
+            echo 'SUCCESS: Application deployed successfully!'
+        }
+
+        failure {
+            echo 'FAILURE: Pipeline execution failed. Check Console Output.'
+        }
+    }
+}
