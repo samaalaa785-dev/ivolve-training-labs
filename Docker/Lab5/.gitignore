@@ -1,0 +1,7 @@
+node_modules/
+build.log
+scan.json
+scan-v2.json
+trivy-report.html
+trivy-report-v2.html
+TrivyImage/
