@@ -1,0 +1,21 @@
+---
+- name: Automated Host Discovery
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+    - name: Display hostname
+      debug:
+        msg: "Hostname: {{ ansible_facts['hostname'] }}"
+
+    - name: Display operating system
+      debug:
+        msg: "OS: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+
+    - name: Display IP address
+      debug:
+        msg: "IP Address: {{ ansible_facts['default_ipv4']['address'] }}"
+
+    - name: Display architecture
+      debug:
+        msg: "Architecture: {{ ansible_facts['architecture'] }}"

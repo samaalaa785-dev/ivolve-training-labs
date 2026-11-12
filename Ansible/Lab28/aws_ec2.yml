@@ -1,0 +1,11 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-east-1
+endpoint_url: http://localhost:4566
+filters:
+  instance-state-name: running
+  tag:server: ivolve
+hostnames:
+  - private-ip-address
+compose:
+  ansible_host: private_ip_address
